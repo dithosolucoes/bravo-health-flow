@@ -14,7 +14,7 @@ const DoctorPrescriptions = () => {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   
-  // Mock prescriptions data with new fields
+
   const allPrescriptions = [
     {
       id: '1',
@@ -22,12 +22,8 @@ const DoctorPrescriptions = () => {
       patientAge: 32,
       evaluationDate: '2023-03-25',
       type: 'queda-capilar',
-      plan: 'semestral',
       observations: 'Paciente apresenta alopecia androgenética grau 3. Indicado tratamento com finasterida e minoxidil.',
-      prescriptionFile: 'prescricao_joao_silva_25032023.pdf',
-      lastPayment: '2023-03-20',
-      lastPrescriptionForTreatment: '2023-02-15',
-      daysSinceLastPrescription: 38
+      prescriptionFile: 'prescricao_joao_silva_25032023.pdf'
     },
     {
       id: '2',
@@ -35,12 +31,8 @@ const DoctorPrescriptions = () => {
       patientAge: 45,
       evaluationDate: '2023-03-25',
       type: 'disfuncao-eretil',
-      plan: 'trimestral',
       observations: 'Paciente relata dificuldades de ereção há 6 meses. Indicado tadalafila 5mg.',
-      prescriptionFile: 'prescricao_marcos_oliveira_25032023.pdf',
-      lastPayment: '2023-03-22',
-      lastPrescriptionForTreatment: '2023-01-10',
-      daysSinceLastPrescription: 74
+      prescriptionFile: 'prescricao_marcos_oliveira_25032023.pdf'
     },
     {
       id: '3',
@@ -48,12 +40,8 @@ const DoctorPrescriptions = () => {
       patientAge: 28,
       evaluationDate: '2023-03-24',
       type: 'queda-capilar',
-      plan: 'semestral',
       observations: 'Início de calvície masculina. Tratamento preventivo com finasterida.',
-      prescriptionFile: 'prescricao_andre_costa_24032023.pdf',
-      lastPayment: '2023-03-18',
-      lastPrescriptionForTreatment: '2023-03-24',
-      daysSinceLastPrescription: 1
+      prescriptionFile: 'prescricao_andre_costa_24032023.pdf'
     },
     {
       id: '4',
@@ -61,12 +49,8 @@ const DoctorPrescriptions = () => {
       patientAge: 41,
       evaluationDate: '2023-03-23',
       type: 'disfuncao-eretil',
-      plan: 'trimestral',
       observations: 'DE moderada. Prescrito sildenafila 50mg conforme necessário.',
-      prescriptionFile: 'prescricao_carlos_eduardo_23032023.pdf',
-      lastPayment: '2023-03-21',
-      lastPrescriptionForTreatment: '2023-02-28',
-      daysSinceLastPrescription: 23
+      prescriptionFile: 'prescricao_carlos_eduardo_23032023.pdf'
     },
     {
       id: '5',
@@ -74,12 +58,8 @@ const DoctorPrescriptions = () => {
       patientAge: 35,
       evaluationDate: '2023-03-23',
       type: 'queda-capilar',
-      plan: 'semestral',
       observations: 'Calvície avançada. Combinação de finasterida 1mg e minoxidil 5%.',
-      prescriptionFile: 'prescricao_paulo_vieira_23032023.pdf',
-      lastPayment: '2023-03-19',
-      lastPrescriptionForTreatment: '2023-01-15',
-      daysSinceLastPrescription: 67
+      prescriptionFile: 'prescricao_paulo_vieira_23032023.pdf'
     },
   ];
   
@@ -202,16 +182,13 @@ const DoctorPrescriptions = () => {
           {filteredPrescriptions.length > 0 ? (
             <div className="space-y-4">
               {/* Desktop Table */}
-              <div className="hidden lg:block overflow-x-auto">
+              <div className="hidden lg:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Paciente</TableHead>
                       <TableHead>Tipo</TableHead>
-                      <TableHead>Plano</TableHead>
-                      <TableHead>Último Pagamento</TableHead>
-                      <TableHead>Última Prescrição</TableHead>
-                      <TableHead>Dias Decorridos</TableHead>
+                      <TableHead>Data</TableHead>
                       <TableHead>Observações</TableHead>
                       <TableHead>Ações</TableHead>
                     </TableRow>
@@ -234,23 +211,9 @@ const DoctorPrescriptions = () => {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge className={prescription.plan === 'semestral' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
-                            {prescription.plan === 'semestral' ? 'Semestral' : 'Trimestral'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(prescription.lastPayment).toLocaleDateString('pt-BR')}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(prescription.lastPrescriptionForTreatment).toLocaleDateString('pt-BR')}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm font-medium">
-                            {prescription.daysSinceLastPrescription} dias
+                          <div className="flex items-center text-sm">
+                            <Calendar size={14} className="mr-1 text-gray-400" />
+                            {new Date(prescription.evaluationDate).toLocaleDateString('pt-BR')}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -305,27 +268,9 @@ const DoctorPrescriptions = () => {
                           </Badge>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-500">Plano:</span>
-                            <div className="font-medium">
-                              <Badge className={prescription.plan === 'semestral' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'}>
-                                {prescription.plan === 'semestral' ? 'Semestral' : 'Trimestral'}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Último Pagamento:</span>
-                            <div className="font-medium">{new Date(prescription.lastPayment).toLocaleDateString('pt-BR')}</div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Última Prescrição:</span>
-                            <div className="font-medium">{new Date(prescription.lastPrescriptionForTreatment).toLocaleDateString('pt-BR')}</div>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Dias Decorridos:</span>
-                            <div className="font-medium">{prescription.daysSinceLastPrescription} dias</div>
-                          </div>
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar size={14} className="mr-1 text-gray-400" />
+                          {new Date(prescription.evaluationDate).toLocaleDateString('pt-BR')}
                         </div>
                         
                         <p className="text-sm text-gray-600">{prescription.observations}</p>

@@ -43,7 +43,7 @@ const FlowBuilder = () => {
   const [currentTab, setCurrentTab] = useState('flows');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+  const API_BASE_URL = 'http://localhost:3000';
 
   // Fetch flows on component mount
   useEffect(() => {

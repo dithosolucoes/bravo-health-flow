@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,97 +31,33 @@ interface TreatmentEvolution {
   }[];
 }
 
+const API_BASE_URL = 'http://localhost:3000';
+
 const ClientTreatments = () => {
   const { user } = useAuth();
   const [treatmentData, setTreatmentData] = useState<TreatmentEvolution | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock data para demonstração
-  const mockTreatmentEvolution: TreatmentEvolution = {
-    id: '1',
-    startDate: '2024-03-01T00:00:00Z',
-    currentPhase: 'Fase de Crescimento',
-    progress: 65,
-    totalDuration: '6 meses',
-    timeElapsed: '3 meses e 5 dias',
-    timeRemaining: '2 meses e 25 dias',
-    photos: [
-      {
-        id: '1',
-        date: '2024-03-01T00:00:00Z',
-        description: 'Início do tratamento',
-        imageUrl: 'https://images.unsplash.com/photo-1618160702438-9b02ab6515c9?w=400&h=300&fit=crop'
-      },
-      {
-        id: '2',
-        date: '2024-04-01T00:00:00Z',
-        description: '1 mês de tratamento',
-        imageUrl: 'https://images.unsplash.com/photo-1721322800607-8c38375eef04?w=400&h=300&fit=crop'
-      },
-      {
-        id: '3',
-        date: '2024-05-01T00:00:00Z',
-        description: '2 meses de tratamento',
-        imageUrl: 'https://images.unsplash.com/photo-1535268647677-300dbf3d78d1?w=400&h=300&fit=crop'
-      },
-      {
-        id: '4',
-        date: '2024-06-01T00:00:00Z',
-        description: '3 meses de tratamento',
-        imageUrl: 'https://images.unsplash.com/photo-1501286353178-1ec881214838?w=400&h=300&fit=crop'
-      }
-    ],
-    milestones: [
-      {
-        id: '1',
-        date: '2024-03-01T00:00:00Z',
-        title: 'Início do Tratamento',
-        description: 'Primeira aplicação dos medicamentos',
-        completed: true
-      },
-      {
-        id: '2',
-        date: '2024-04-01T00:00:00Z',
-        title: 'Primeira Avaliação',
-        description: 'Avaliação inicial dos resultados',
-        completed: true
-      },
-      {
-        id: '3',
-        date: '2024-05-01T00:00:00Z',
-        title: 'Ajuste de Dosagem',
-        description: 'Otimização do tratamento baseada nos resultados',
-        completed: true
-      },
-      {
-        id: '4',
-        date: '2024-06-15T00:00:00Z',
-        title: 'Avaliação Intermediária',
-        description: 'Avaliação dos progressos obtidos',
-        completed: false
-      },
-      {
-        id: '5',
-        date: '2024-09-01T00:00:00Z',
-        title: 'Finalização',
-        description: 'Conclusão do ciclo de tratamento',
-        completed: false
-      }
-    ]
-  };
-
   const fetchTreatmentEvolution = async () => {
     try {
       setLoading(true);
       setError(null);
+
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Usar dados mock
-      setTreatmentData(mockTreatmentEvolution);
-      
+      const response = await fetch(`${API_BASE_URL}/treatment-evolution`, {
+        headers: {
+          'Authorization': `Bearer ${user?.token || ''}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const data: TreatmentEvolution = await response.json();
+      setTreatmentData(data);
     } catch (err) {
       console.error('Erro ao carregar evolução do tratamento:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');

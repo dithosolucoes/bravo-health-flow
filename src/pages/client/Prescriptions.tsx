@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { FileText, User, Loader2, RefreshCw, AlertCircle, Calendar } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
 
-interface TreatmentItem {
+interface Prescription {
   id: string;
   type: 'prescription';
   title: string;
@@ -21,73 +20,57 @@ interface TreatmentItem {
   };
 }
 
+const API_BASE_URL = 'http://localhost:3000';
+
+const fetchPrescriptions = async (token: string): Promise<Prescription[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/client/prescriptions`, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar prescrições:', error);
+    throw error;
+  }
+};
+
 const ClientPrescriptions = () => {
   const { user } = useAuth();
-  const [treatments, setTreatments] = useState<TreatmentItem[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Mock data para evitar erros de fetch
-  const mockTreatmentData: TreatmentItem[] = [
-    {
-      id: '1',
-      type: 'prescription',
-      title: 'Prescrição Médica - Tratamento Capilar Premium',
-      date: '2024-03-20T14:30:00Z',
-      status: 'active',
-      details: {
-        doctor: 'Dr. Carlos Silva',
-        medications: [
-          'Minoxidil 5% - Aplicar 1ml 2x ao dia no couro cabeludo',
-          'Finasterida 1mg - 1 comprimido ao dia',
-          'Vitaminas capilares - 2 cápsulas ao dia',
-          'Shampoo especial - Usar 3x por semana'
-        ],
-        duration: '6 meses',
-        notes: 'Tratamento em andamento. Próxima avaliação em 2 meses.'
-      }
-    },
-    {
-      id: '2',
-      type: 'prescription',
-      title: 'Prescrição Médica - Tratamento Inicial',
-      date: '2024-01-10T09:00:00Z',
-      status: 'completed',
-      details: {
-        doctor: 'Dr. Carlos Silva',
-        medications: [
-          'Minoxidil 2% - Aplicar 1ml 1x ao dia',
-          'Suplemento vitamínico - 1 cápsula ao dia'
-        ],
-        duration: '3 meses',
-        notes: 'Tratamento inicial concluído com sucesso. Evoluiu para tratamento premium.'
-      }
-    }
-  ];
-
-  const fetchTreatments = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Simular delay da API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Usar dados mock em vez de fazer requisição real
-      setTreatments(mockTreatmentData);
-      
+      if (!user?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      const data = await fetchPrescriptions(user.token);
+      setPrescriptions(data);
     } catch (err) {
-      console.error('Erro ao carregar tratamentos:', err);
+      console.error('Erro ao carregar prescrições:', err);
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
-      toast.error('Falha ao carregar tratamentos');
+      toast.error('Falha ao carregar prescrições');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchTreatments();
-  }, []);
+    fetchData();
+  }, [user?.token]);
 
   const getBadge = (status: string) => {
     switch (status) {
@@ -104,12 +87,12 @@ const ClientPrescriptions = () => {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Meus Tratamentos</h1>
+          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Minhas Prescrições</h1>
           <p className="text-gray-600">Acompanhe suas prescrições médicas e medicamentos</p>
         </div>
         <div className="flex flex-col items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-bravo-blue mb-4" />
-          <p className="text-gray-600">Carregando seus tratamentos...</p>
+          <p className="text-gray-600">Carregando suas prescrições...</p>
         </div>
       </div>
     );
@@ -119,17 +102,17 @@ const ClientPrescriptions = () => {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Meus Tratamentos</h1>
+          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Minhas Prescrições</h1>
           <p className="text-gray-600">Acompanhe suas prescrições médicas e medicamentos</p>
         </div>
         <Card>
           <CardContent className="py-8 text-center">
             <AlertCircle className="h-8 w-8 mx-auto text-red-500 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar tratamentos</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Erro ao carregar prescrições</h3>
             <p className="text-sm text-gray-500 mb-6">{error}</p>
             <Button 
               variant="outline" 
-              onClick={fetchTreatments}
+              onClick={fetchData}
               className="mx-auto"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -141,19 +124,19 @@ const ClientPrescriptions = () => {
     );
   }
 
-  if (treatments.length === 0) {
+  if (prescriptions.length === 0) {
     return (
       <div>
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Meus Tratamentos</h1>
+          <h1 className="text-2xl font-bold text-bravo-blue mb-2">Minhas Prescrições</h1>
           <p className="text-gray-600">Acompanhe suas prescrições médicas e medicamentos</p>
         </div>
         <Card>
           <CardContent className="py-8 text-center">
             <Calendar className="h-8 w-8 mx-auto text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum tratamento encontrado</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma prescrição encontrada</h3>
             <p className="text-sm text-gray-500">
-              Seus tratamentos e prescrições aparecerão aqui
+              Suas prescrições aparecerão aqui quando disponíveis
             </p>
           </CardContent>
         </Card>
@@ -164,12 +147,12 @@ const ClientPrescriptions = () => {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-bravo-blue mb-2">Meus Tratamentos</h1>
+        <h1 className="text-2xl font-bold text-bravo-blue mb-2">Minhas Prescrições</h1>
         <p className="text-gray-600">Acompanhe suas prescrições médicas e medicamentos</p>
       </div>
       
       <div className="space-y-6">
-        {treatments.map((item) => (
+        {prescriptions.map((item) => (
           <Card key={item.id}>
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
