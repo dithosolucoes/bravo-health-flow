@@ -34,53 +34,7 @@ interface Doctor {
   joinedDate: string;
 }
 
-// Mock data
-const mockDoctors: Doctor[] = [
-  {
-    id: '1',
-    name: 'Dr. João Silva',
-    email: 'joao.silva@bravo.com.br',
-    phone: '(11) 99999-1234',
-    crm: 'CRM-SP 123456',
-    specialty: 'Dermatologia',
-    status: 'active',
-    patientsCount: 47,
-    joinedDate: '2023-01-15'
-  },
-  {
-    id: '2',
-    name: 'Dra. Maria Santos',
-    email: 'maria.santos@bravo.com.br',
-    phone: '(11) 98888-5678',
-    crm: 'CRM-SP 654321',
-    specialty: 'Urologia',
-    status: 'active',
-    patientsCount: 32,
-    joinedDate: '2023-02-20'
-  },
-  {
-    id: '3',
-    name: 'Dr. Carlos Oliveira',
-    email: 'carlos.oliveira@bravo.com.br',
-    phone: '(11) 97777-9012',
-    crm: 'CRM-RJ 789012',
-    specialty: 'Endocrinologia',
-    status: 'pending',
-    patientsCount: 0,
-    joinedDate: '2024-06-01'
-  },
-  {
-    id: '4',
-    name: 'Dra. Ana Costa',
-    email: 'ana.costa@bravo.com.br',
-    phone: '(11) 96666-3456',
-    crm: 'CRM-SP 345678',
-    specialty: 'Dermatologia',
-    status: 'inactive',
-    patientsCount: 28,
-    joinedDate: '2022-11-10'
-  }
-];
+const API_URL = 'http://localhost:3000/doctors';
 
 const AdminDoctors = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -101,52 +55,95 @@ const AdminDoctors = () => {
     status: 'pending' as Doctor['status']
   });
 
-  // Load mock data instead of API call
   const fetchDoctors = async () => {
     setLoading(true);
     setError(null);
     
-    // Simulate loading delay
-    setTimeout(() => {
-      setDoctors(mockDoctors);
+    try {
+      const response = await fetch(API_URL);
+      if (!response.ok) {
+        throw new Error('Erro ao carregar médicos');
+      }
+      const data = await response.json();
+      setDoctors(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar médicos');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const createDoctor = async (doctorData: any) => {
-    const newDoctor: Doctor = {
-      id: Date.now().toString(),
-      ...doctorData,
-      patientsCount: 0,
-      joinedDate: new Date().toISOString().split('T')[0]
-    };
-    
-    setDoctors(prev => [...prev, newDoctor]);
-    return newDoctor;
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(doctorData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao criar médico');
+      }
+      
+      const newDoctor = await response.json();
+      setDoctors(prev => [...prev, newDoctor]);
+      return newDoctor;
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Erro ao criar médico');
+    }
   };
 
   const updateDoctor = async (id: string, doctorData: any) => {
-    setDoctors(prev => prev.map(doctor => 
-      doctor.id === id ? { ...doctor, ...doctorData } : doctor
-    ));
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(doctorData),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao atualizar médico');
+      }
+      
+      const updatedDoctor = await response.json();
+      setDoctors(prev => prev.map(doctor => 
+        doctor.id === id ? updatedDoctor : doctor
+      ));
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Erro ao atualizar médico');
+    }
   };
 
   const deleteDoctor = async (id: string) => {
-    setDoctors(prev => prev.filter(doctor => doctor.id !== id));
+    try {
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erro ao deletar médico');
+      }
+      
+      setDoctors(prev => prev.filter(doctor => doctor.id !== id));
+    } catch (err) {
+      throw err instanceof Error ? err : new Error('Erro ao deletar médico');
+    }
   };
 
   useEffect(() => {
     fetchDoctors();
   }, []);
 
-  // Filter doctors based on search query, status filter, and date range
   const filteredDoctors = doctors.filter(doctor => {
     const matchesSearch = doctor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doctor.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          doctor.crm.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === 'all' || doctor.status === statusFilter;
     
-    // Date filtering
     let matchesDateRange = true;
     if (startDate || endDate) {
       const joinedDate = new Date(doctor.joinedDate);
@@ -219,7 +216,6 @@ const AdminDoctors = () => {
     }
   };
   
-  // Doctor actions
   const activateDoctor = async (doctorId: string) => {
     setLoading(true);
     setError(null);

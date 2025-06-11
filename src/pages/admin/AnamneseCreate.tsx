@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,6 +29,8 @@ interface Question {
   options?: string[];
 }
 
+const API_BASE_URL = 'http://localhost:3000';
+
 const AdminAnamneseCreate = () => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -38,6 +39,7 @@ const AdminAnamneseCreate = () => {
   const [questionType, setQuestionType] = useState<QuestionType>('text');
   const [options, setOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   const addQuestion = () => {
@@ -90,7 +92,31 @@ const AdminAnamneseCreate = () => {
     setOptions(options.filter((opt) => opt !== option));
   };
 
-  const handleSubmit = () => {
+  const createAnamnese = async (anamneseData: any) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/anamnese`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Adicione aqui o token de autenticação se necessário
+          // 'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(anamneseData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao criar anamnese');
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error('Erro na requisição:', error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async () => {
     if (!title.trim()) {
       toast.error('Por favor, insira o título da anamnese.');
       return;
@@ -106,14 +132,35 @@ const AdminAnamneseCreate = () => {
       return;
     }
 
-    console.log({
-      title,
-      description,
-      questions,
-    });
+    setIsLoading(true);
 
-    toast.success('Anamnese criada com sucesso!');
-    navigate('/admin/anamnese');
+    try {
+      const anamneseData = {
+        title: title.trim(),
+        description: description.trim(),
+        questions: questions.map(q => ({
+          text: q.text,
+          type: q.type,
+          options: q.options || null,
+        })),
+        active: true,
+        createdAt: new Date().toISOString(),
+      };
+
+      console.log('Enviando dados:', anamneseData);
+
+      const result = await createAnamnese(anamneseData);
+      
+      console.log('Anamnese criada:', result);
+      toast.success('Anamnese criada com sucesso!');
+      navigate('/admin/anamnese');
+      
+    } catch (error: any) {
+      console.error('Erro ao criar anamnese:', error);
+      toast.error(error.message || 'Erro ao criar anamnese. Tente novamente.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -148,6 +195,7 @@ const AdminAnamneseCreate = () => {
               placeholder="Título da anamnese"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           <div className="grid gap-2">
@@ -157,6 +205,7 @@ const AdminAnamneseCreate = () => {
               placeholder="Descrição da anamnese"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
+              disabled={isLoading}
             />
           </div>
         </CardContent>
@@ -177,6 +226,7 @@ const AdminAnamneseCreate = () => {
               placeholder="Texto da pergunta"
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
+              disabled={isLoading}
             />
           </div>
 
@@ -184,7 +234,9 @@ const AdminAnamneseCreate = () => {
             <Label htmlFor="type">Tipo de Pergunta</Label>
             <Select 
               defaultValue="text" 
-              onValueChange={(value) => setQuestionType(value as QuestionType)}>
+              onValueChange={(value) => setQuestionType(value as QuestionType)}
+              disabled={isLoading}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione o tipo de pergunta" />
               </SelectTrigger>
@@ -206,8 +258,14 @@ const AdminAnamneseCreate = () => {
                   placeholder="Nova opção"
                   value={newOption}
                   onChange={(e) => setNewOption(e.target.value)}
+                  disabled={isLoading}
                 />
-                <Button type="button" size="sm" onClick={addOption}>
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  onClick={addOption}
+                  disabled={isLoading}
+                >
                   Adicionar
                 </Button>
               </div>
@@ -222,6 +280,7 @@ const AdminAnamneseCreate = () => {
                         size="icon"
                         className="h-4 w-4 p-0 ml-1"
                         onClick={() => removeOption(option)}
+                        disabled={isLoading}
                       >
                         <Trash2 className="h-3 w-3" />
                       </Button>
@@ -232,7 +291,11 @@ const AdminAnamneseCreate = () => {
             </div>
           )}
 
-          <Button type="button" onClick={addQuestion}>
+          <Button 
+            type="button" 
+            onClick={addQuestion}
+            disabled={isLoading}
+          >
             <Plus size={16} className="mr-2" />
             Adicionar Pergunta
           </Button>
@@ -266,6 +329,7 @@ const AdminAnamneseCreate = () => {
                   size="sm"
                   onClick={() => removeQuestion(question.id)}
                   className="mt-2"
+                  disabled={isLoading}
                 >
                   Remover
                 </Button>
@@ -276,7 +340,12 @@ const AdminAnamneseCreate = () => {
       )}
 
       <div className="mt-8 flex justify-end">
-        <Button onClick={handleSubmit}>Salvar Anamnese</Button>
+        <Button 
+          onClick={handleSubmit}
+          disabled={isLoading}
+        >
+          {isLoading ? 'Salvando...' : 'Salvar Anamnese'}
+        </Button>
       </div>
     </div>
   );

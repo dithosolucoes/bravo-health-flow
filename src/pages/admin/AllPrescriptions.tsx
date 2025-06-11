@@ -10,6 +10,7 @@ import { User, CalendarIcon, Search, FileText, Download, Eye, UserCheck, Loader2
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from '@/components/ui/sonner';
 
 interface Prescription {
   id: string;
@@ -21,77 +22,10 @@ interface Prescription {
   uploadDate: string;
   observations: string;
   prescriptionFile: string;
+  prescriptionUrl?: string;
 }
 
-// Mock data
-const mockPrescriptions: Prescription[] = [
-  {
-    id: '1',
-    patientName: 'João Silva Santos',
-    patientAge: 32,
-    doctorName: 'Dr. Carlos Oliveira',
-    doctorCRM: 'CRM-SP 123456',
-    type: 'queda-capilar',
-    uploadDate: '2024-06-03',
-    observations: 'Paciente apresenta alopecia androgenética grau 3. Indicado tratamento com finasterida 1mg e minoxidil 5%.',
-    prescriptionFile: 'prescricao_joao_silva_03062024.pdf'
-  },
-  {
-    id: '2',
-    patientName: 'Maria Oliveira Costa',
-    patientAge: 28,
-    doctorName: 'Dra. Ana Santos',
-    doctorCRM: 'CRM-RJ 654321',
-    type: 'disfuncao-eretil',
-    uploadDate: '2024-06-02',
-    observations: 'Paciente relata dificuldades de ereção há 4 meses. Prescrito tadalafila 5mg uso diário.',
-    prescriptionFile: 'prescricao_maria_costa_02062024.pdf'
-  },
-  {
-    id: '3',
-    patientName: 'Carlos Eduardo Lima',
-    patientAge: 45,
-    doctorName: 'Dr. Pedro Martins',
-    doctorCRM: 'CRM-SP 789012',
-    type: 'queda-capilar',
-    uploadDate: '2024-06-01',
-    observations: 'Calvície em estágio inicial. Tratamento preventivo com finasterida 1mg.',
-    prescriptionFile: 'prescricao_carlos_lima_01062024.pdf'
-  },
-  {
-    id: '4',
-    patientName: 'Roberto Almeida',
-    patientAge: 38,
-    doctorName: 'Dr. Carlos Oliveira',
-    doctorCRM: 'CRM-SP 123456',
-    type: 'disfuncao-eretil',
-    uploadDate: '2024-05-31',
-    observations: 'DE moderada. Prescrito sildenafila 50mg conforme necessário.',
-    prescriptionFile: 'prescricao_roberto_almeida_31052024.pdf'
-  },
-  {
-    id: '5',
-    patientName: 'André Costa Silva',
-    patientAge: 29,
-    doctorName: 'Dra. Ana Santos',
-    doctorCRM: 'CRM-RJ 654321',
-    type: 'queda-capilar',
-    uploadDate: '2024-05-30',
-    observations: 'Alopecia androgenética inicial. Kit completo com finasterida + minoxidil.',
-    prescriptionFile: 'prescricao_andre_silva_30052024.pdf'
-  },
-  {
-    id: '6',
-    patientName: 'Paulo Henrique Vieira',
-    patientAge: 41,
-    doctorName: 'Dr. Pedro Martins',
-    doctorCRM: 'CRM-SP 789012',
-    type: 'disfuncao-eretil',
-    uploadDate: '2024-05-29',
-    observations: 'Disfunção erétil severa. Tadalafila 20mg conforme necessário.',
-    prescriptionFile: 'prescricao_paulo_vieira_29052024.pdf'
-  }
-];
+const API_BASE_URL = 'http://localhost:3000';
 
 const AllPrescriptions = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -102,29 +36,64 @@ const AllPrescriptions = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedPrescriptions, setSelectedPrescriptions] = useState<string[]>([]);
   const [downloadingMass, setDownloadingMass] = useState(false);
+  const [downloadingFile, setDownloadingFile] = useState<string | null>(null);
+  const [viewingFile, setViewingFile] = useState<string | null>(null);
 
-  // Fetch prescriptions (mock data)
+  // Fetch prescriptions from API
   const fetchPrescriptions = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // Simulate loading delay
-      setTimeout(() => {
-        setPrescriptions(mockPrescriptions);
-        setLoading(false);
-      }, 500);
+      const queryParams = new URLSearchParams();
+      
+      if (searchQuery.trim()) {
+        queryParams.append('search', searchQuery.trim());
+      }
+      
+      if (startDate) {
+        queryParams.append('startDate', startDate.toISOString().split('T')[0]);
+      }
+      
+      if (endDate) {
+        queryParams.append('endDate', endDate.toISOString().split('T')[0]);
+      }
+
+      const url = `${API_BASE_URL}/api/prescriptions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Adicione aqui o token de autenticação se necessário
+          // 'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao buscar prescrições');
+      }
+
+      const data = await response.json();
+      setPrescriptions(data.prescriptions || data);
+      
     } catch (err) {
       console.error('Erro ao buscar prescrições:', err);
       setError(err instanceof Error ? err.message : 'Erro ao carregar prescrições');
+    } finally {
       setLoading(false);
     }
   };
 
-  // Load prescriptions on component mount
+  // Load prescriptions on component mount and when filters change
   useEffect(() => {
-    fetchPrescriptions();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      fetchPrescriptions();
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, startDate, endDate]);
 
   // Handle individual prescription selection
   const handleSelectPrescription = (prescriptionId: string, checked: boolean) => {
@@ -138,7 +107,7 @@ const AllPrescriptions = () => {
   // Handle select all toggle
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedPrescriptions(filteredPrescriptions.map(p => p.id));
+      setSelectedPrescriptions(prescriptions.map(p => p.id));
     } else {
       setSelectedPrescriptions([]);
     }
@@ -147,54 +116,123 @@ const AllPrescriptions = () => {
   // Handle mass download
   const handleMassDownload = async () => {
     if (selectedPrescriptions.length === 0) {
-      alert('Selecione pelo menos uma prescrição para download');
+      toast.error('Selecione pelo menos uma prescrição para download');
       return;
     }
 
     try {
       setDownloadingMass(true);
       
-      // Simulate mass download
-      const selectedFiles = prescriptions
-        .filter(p => selectedPrescriptions.includes(p.id))
-        .map(p => p.prescriptionFile);
+      const response = await fetch(`${API_BASE_URL}/api/prescriptions/mass-download`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          prescriptionIds: selectedPrescriptions
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro no download em massa');
+      }
+
+      // Se o backend retorna um arquivo ZIP
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `prescricoes_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success(`Download iniciado para ${selectedPrescriptions.length} prescrições`);
+      setSelectedPrescriptions([]);
       
-      console.log('Downloading files:', selectedFiles);
-      
-      // Mock download delay
-      setTimeout(() => {
-        alert(`Download iniciado para ${selectedPrescriptions.length} prescrições`);
-        setSelectedPrescriptions([]);
-        setDownloadingMass(false);
-      }, 1000);
     } catch (err) {
       console.error('Erro no download em massa:', err);
-      alert('Erro ao fazer download em massa');
+      toast.error(err instanceof Error ? err.message : 'Erro ao fazer download em massa');
+    } finally {
       setDownloadingMass(false);
     }
   };
 
-  // Download prescription file (mock)
+  // Download prescription file
   const handleDownload = async (prescriptionId: string, filename: string) => {
     try {
-      // Mock download functionality
-      console.log('Downloading prescription:', prescriptionId, filename);
-      alert(`Download iniciado: ${filename}`);
+      setDownloadingFile(prescriptionId);
+      
+      const response = await fetch(`${API_BASE_URL}/api/prescriptions/${prescriptionId}/download`, {
+        method: 'GET',
+        headers: {
+          // 'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao baixar arquivo');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Download iniciado com sucesso');
+      
     } catch (err) {
       console.error('Erro ao baixar arquivo:', err);
-      alert('Erro ao baixar arquivo');
+      toast.error(err instanceof Error ? err.message : 'Erro ao baixar arquivo');
+    } finally {
+      setDownloadingFile(null);
     }
   };
 
-  // View prescription file (mock)
+  // View prescription file
   const handleView = async (prescriptionId: string) => {
     try {
-      // Mock view functionality  
-      console.log('Viewing prescription:', prescriptionId);
-      alert('Visualizando prescrição...');
+      setViewingFile(prescriptionId);
+      
+      const response = await fetch(`${API_BASE_URL}/api/prescriptions/${prescriptionId}/view`, {
+        method: 'GET',
+        headers: {
+          // 'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erro ao visualizar arquivo');
+      }
+
+      const data = await response.json();
+      
+      // Se o backend retorna uma URL para visualização
+      if (data.viewUrl) {
+        window.open(data.viewUrl, '_blank');
+      } else {
+        // Ou se retorna o arquivo diretamente
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+      }
+      
     } catch (err) {
       console.error('Erro ao visualizar arquivo:', err);
-      alert('Erro ao visualizar arquivo');
+      toast.error(err instanceof Error ? err.message : 'Erro ao visualizar arquivo');
+    } finally {
+      setViewingFile(null);
     }
   };
 
@@ -203,14 +241,14 @@ const AllPrescriptions = () => {
     fetchPrescriptions();
   };
   
-  // Filter prescriptions based on search query and date range
+  // Filter prescriptions based on search query and date range (client-side backup)
   const filteredPrescriptions = prescriptions.filter(prescription => {
-    // Search filter (patient name or doctor name)
+    // Se a API já fez a filtragem, podemos pular essa etapa
+    // Mas mantemos como fallback caso a API não suporte filtros
     const matchesSearch = 
       prescription.patientName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prescription.doctorName?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Date range filter (based on upload date)
     let matchesDateRange = true;
     if (prescription.uploadDate && (startDate || endDate)) {
       const uploadDate = new Date(prescription.uploadDate);
@@ -520,16 +558,26 @@ const AllPrescriptions = () => {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleView(prescription.id)}
+                                disabled={viewingFile === prescription.id}
                               >
-                                <Eye size={14} className="mr-1" />
+                                {viewingFile === prescription.id ? (
+                                  <Loader2 size={14} className="mr-1 animate-spin" />
+                                ) : (
+                                  <Eye size={14} className="mr-1" />
+                                )}
                                 Ver
                               </Button>
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleDownload(prescription.id, prescription.prescriptionFile)}
+                                disabled={downloadingFile === prescription.id}
                               >
-                                <Download size={14} className="mr-1" />
+                                {downloadingFile === prescription.id ? (
+                                  <Loader2 size={14} className="mr-1 animate-spin" />
+                                ) : (
+                                  <Download size={14} className="mr-1" />
+                                )}
                                 Download
                               </Button>
                             </div>
@@ -587,8 +635,13 @@ const AllPrescriptions = () => {
                             size="sm"
                             onClick={() => handleView(prescription.id)}
                             className="flex-1"
+                            disabled={viewingFile === prescription.id}
                           >
-                            <Eye size={14} className="mr-1" />
+                            {viewingFile === prescription.id ? (
+                              <Loader2 size={14} className="mr-1 animate-spin" />
+                            ) : (
+                              <Eye size={14} className="mr-1" />
+                            )}
                             Ver
                           </Button>
                           <Button
@@ -596,8 +649,13 @@ const AllPrescriptions = () => {
                             size="sm"
                             onClick={() => handleDownload(prescription.id, prescription.prescriptionFile)}
                             className="flex-1"
+                            disabled={downloadingFile === prescription.id}
                           >
-                            <Download size={14} className="mr-1" />
+                            {downloadingFile === prescription.id ? (
+                              <Loader2 size={14} className="mr-1 animate-spin" />
+                            ) : (
+                              <Download size={14} className="mr-1" />
+                            )}
                             Download
                           </Button>
                         </div>

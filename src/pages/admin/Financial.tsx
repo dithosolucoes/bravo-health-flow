@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search, Download, ArrowUp, ArrowDown, DollarSign, TrendingUp, CreditCard, Users, Loader2, AlertCircle, CalendarIcon } from 'lucide-react';
+import { Search, Download, ArrowUp, ArrowDown, DollarSign, TrendingUp, CreditCard, Users, Loader2, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -40,138 +40,107 @@ interface Transaction {
   paymentMethod: 'credit_card' | 'pix';
 }
 
-// Mock data
-const mockFinancialSummary: FinancialSummary[] = [
-  {
-    title: 'Receita Total',
-    value: 'R$ 125.450',
-    change: '+12.3% vs mês anterior',
-    changeType: 'increase'
-  },
-  {
-    title: 'Total de Assinantes',
-    value: '2.847',
-    change: '+8.2% vs mês anterior',
-    changeType: 'increase'
-  },
-  {
-    title: 'Valor Médio',
-    value: 'R$ 89,50',
-    change: '+2.1% vs mês anterior',
-    changeType: 'increase'
-  },
-  {
-    title: 'Taxa de Conversão',
-    value: '4.2%',
-    change: '-0.5% vs mês anterior',
-    changeType: 'decrease'
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
+
+// API functions
+const API_BASE_URL = 'http://localhost:3000';
+
+const apiRequest = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers,
+      },
+      ...options,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result: ApiResponse<T> = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.message || 'API request failed');
+    }
+
+    return result.data;
+  } catch (error) {
+    console.error('API request error:', error);
+    throw error;
   }
-];
+};
 
-const mockRevenueData = [
-  { month: 'Jan', revenue: 95000 },
-  { month: 'Fev', revenue: 102000 },
-  { month: 'Mar', revenue: 108000 },
-  { month: 'Abr', revenue: 98000 },
-  { month: 'Mai', revenue: 115000 },
-  { month: 'Jun', revenue: 125450 },
-  { month: 'Jul', revenue: 130000 },
-  { month: 'Ago', revenue: 128000 },
-  { month: 'Set', revenue: 135000 },
-  { month: 'Out', revenue: 142000 },
-  { month: 'Nov', revenue: 138000 },
-  { month: 'Dez', revenue: 145000 }
-];
+const fetchFinancialSummary = async (startDate?: Date, endDate?: Date) => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate.toISOString());
+  if (endDate) params.append('endDate', endDate.toISOString());
+  
+  const queryString = params.toString();
+  const endpoint = `/api/financial/summary${queryString ? `?${queryString}` : ''}`;
+  
+  return apiRequest<FinancialSummary[]>(endpoint);
+};
 
-const mockUserGrowthData = [
-  { month: 'Jan', users: 1850 },
-  { month: 'Fev', users: 1920 },
-  { month: 'Mar', users: 2100 },
-  { month: 'Abr', users: 2050 },
-  { month: 'Mai', users: 2300 },
-  { month: 'Jun', users: 2450 },
-  { month: 'Jul', users: 2580 },
-  { month: 'Ago', users: 2650 },
-  { month: 'Set', users: 2720 },
-  { month: 'Out', users: 2800 },
-  { month: 'Nov', users: 2847 },
-  { month: 'Dez', users: 2900 }
-];
+const fetchRevenueData = async (startDate?: Date, endDate?: Date) => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate.toISOString());
+  if (endDate) params.append('endDate', endDate.toISOString());
+  
+  const queryString = params.toString();
+  const endpoint = `/api/financial/revenue-chart${queryString ? `?${queryString}` : ''}`;
+  
+  return apiRequest<{ month: string; revenue: number }[]>(endpoint);
+};
 
-const mockTransactions: Transaction[] = [
-  {
-    id: 'TXN001',
-    date: '2024-06-04',
-    customer: 'João Silva Santos',
-    plan: 'Tratamento Capilar Premium - 3 meses',
-    amount: 285.00,
-    status: 'succeeded',
-    paymentMethod: 'credit_card'
-  },
-  {
-    id: 'TXN002',
-    date: '2024-06-04',
-    customer: 'Maria Oliveira Costa',
-    plan: 'Tratamento Disfunção Erétil - 1 mês',
-    amount: 95.00,
-    status: 'succeeded',
-    paymentMethod: 'pix'
-  },
-  {
-    id: 'TXN003',
-    date: '2024-06-03',
-    customer: 'Carlos Eduardo Lima',
-    plan: 'Tratamento Capilar Básico - 1 mês',
-    amount: 125.00,
-    status: 'failed',
-    paymentMethod: 'credit_card'
-  },
-  {
-    id: 'TXN004',
-    date: '2024-06-03',
-    customer: 'Ana Paula Ferreira',
-    plan: 'Consulta + Medicamentos - 2 meses',
-    amount: 190.00,
-    status: 'succeeded',
-    paymentMethod: 'pix'
-  },
-  {
-    id: 'TXN005',
-    date: '2024-06-02',
-    customer: 'Roberto Almeida',
-    plan: 'Tratamento Completo - 6 meses',
-    amount: 450.00,
-    status: 'refunded',
-    paymentMethod: 'credit_card'
-  },
-  {
-    id: 'TXN006',
-    date: '2024-06-02',
-    customer: 'Fernanda Ribeiro',
-    plan: 'Tratamento Capilar Premium - 3 meses',
-    amount: 285.00,
-    status: 'succeeded',
-    paymentMethod: 'credit_card'
-  },
-  {
-    id: 'TXN007',
-    date: '2024-06-01',
-    customer: 'Pedro Henrique Silva',
-    plan: 'Medicamentos Básicos - 1 mês',
-    amount: 75.00,
-    status: 'succeeded',
-    paymentMethod: 'pix'
-  },
-  {
-    id: 'TXN008',
-    date: '2024-06-01',
-    customer: 'Juliana Martins',
-    plan: 'Tratamento Hormonal - 2 meses',
-    amount: 320.00,
-    status: 'succeeded',
-    paymentMethod: 'credit_card'
+const fetchUserGrowthData = async (startDate?: Date, endDate?: Date) => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate.toISOString());
+  if (endDate) params.append('endDate', endDate.toISOString());
+  
+  const queryString = params.toString();
+  const endpoint = `/api/financial/user-growth${queryString ? `?${queryString}` : ''}`;
+  
+  return apiRequest<{ month: string; users: number }[]>(endpoint);
+};
+
+const fetchTransactions = async (search?: string, startDate?: Date, endDate?: Date) => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (startDate) params.append('startDate', startDate.toISOString());
+  if (endDate) params.append('endDate', endDate.toISOString());
+  
+  const queryString = params.toString();
+  const endpoint = `/api/financial/transactions${queryString ? `?${queryString}` : ''}`;
+  
+  return apiRequest<Transaction[]>(endpoint);
+};
+
+const exportFinancialData = async (startDate?: Date, endDate?: Date) => {
+  const params = new URLSearchParams();
+  if (startDate) params.append('startDate', startDate.toISOString());
+  if (endDate) params.append('endDate', endDate.toISOString());
+  
+  const queryString = params.toString();
+  const endpoint = `/api/financial/export${queryString ? `?${queryString}` : ''}`;
+  
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
   }
-];
+
+  return response.blob();
+};
 
 const AdminFinancial = () => {
   const [searchTransaction, setSearchTransaction] = useState('');
@@ -183,48 +152,47 @@ const AdminFinancial = () => {
   const [revenueData, setRevenueData] = useState<{ month: string; revenue: number }[]>([]);
   const [userGrowthData, setUserGrowthData] = useState<{ month: string; users: number }[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [exportLoading, setExportLoading] = useState(false);
 
-  // Load mock data
+  // Load data from backend
+  const loadData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const [summaryData, chartData, growthData, transactionData] = await Promise.all([
+        fetchFinancialSummary(startDate, endDate),
+        fetchRevenueData(startDate, endDate),
+        fetchUserGrowthData(startDate, endDate),
+        fetchTransactions(searchTransaction, startDate, endDate)
+      ]);
+
+      setFinancialSummary(summaryData);
+      setRevenueData(chartData);
+      setUserGrowthData(growthData);
+      setTransactions(transactionData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro ao carregar dados financeiros';
+      setError(errorMessage);
+      console.error('Error loading financial data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on component mount and when filters change
   useEffect(() => {
-    const loadMockData = () => {
-      setLoading(true);
-      setError(null);
-      
-      // Simulate loading delay
-      setTimeout(() => {
-        setFinancialSummary(mockFinancialSummary);
-        setRevenueData(mockRevenueData);
-        setUserGrowthData(mockUserGrowthData);
-        setTransactions(mockTransactions);
-        setLoading(false);
-      }, 1000);
-    };
-
-    loadMockData();
+    loadData();
   }, [startDate, endDate]);
 
-  // Filter transactions based on search and date range
-  const filteredTransactions = transactions.filter(transaction => {
-    const matchesSearch = transaction.customer.toLowerCase().includes(searchTransaction.toLowerCase()) ||
-      transaction.plan.toLowerCase().includes(searchTransaction.toLowerCase()) ||
-      transaction.id.toLowerCase().includes(searchTransaction.toLowerCase());
-    
-    // Date range filter
-    let matchesDateRange = true;
-    if (transaction.date && (startDate || endDate)) {
-      const transactionDate = new Date(transaction.date);
-      
-      if (startDate && endDate) {
-        matchesDateRange = transactionDate >= startDate && transactionDate <= endDate;
-      } else if (startDate) {
-        matchesDateRange = transactionDate >= startDate;
-      } else if (endDate) {
-        matchesDateRange = transactionDate <= endDate;
-      }
-    }
-    
-    return matchesSearch && matchesDateRange;
-  });
+  // Debounced search effect
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      loadData();
+    }, 500);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchTransaction]);
 
   // Helper function to format currency
   const formatCurrency = (value: number) => {
@@ -235,23 +203,44 @@ const AdminFinancial = () => {
   };
 
   const handleExport = async () => {
+    setExportLoading(true);
     try {
-      // Mock export functionality
+      const blob = await exportFinancialData(startDate, endDate);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
       const dateRangeText = startDate && endDate 
-        ? ` (${format(startDate, "dd/MM/yyyy")} - ${format(endDate, "dd/MM/yyyy")})`
+        ? `_${format(startDate, "yyyy-MM-dd")}_${format(endDate, "yyyy-MM-dd")}`
         : '';
-      toast.success(`Export completed successfully${dateRangeText} (mock data)`);
+      
+      link.download = `financial_report${dateRangeText}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Relatório exportado com sucesso!');
     } catch (error) {
       console.error('Error exporting data:', error);
-      toast.error('Failed to export financial data');
+      toast.error('Erro ao exportar dados financeiros');
+    } finally {
+      setExportLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setError(null);
+    loadData();
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading financial data...</span>
+        <span className="ml-2">Carregando dados financeiros...</span>
       </div>
     );
   }
@@ -260,12 +249,9 @@ const AdminFinancial = () => {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <AlertCircle className="h-8 w-8 text-red-500" />
-        <p className="text-red-600">{error}</p>
-        <Button 
-          variant="outline" 
-          onClick={() => window.location.reload()}
-        >
-          Try Again
+        <p className="text-red-600 text-center max-w-md">{error}</p>
+        <Button variant="outline" onClick={handleRetry}>
+          Tentar Novamente
         </Button>
       </div>
     );
@@ -478,8 +464,12 @@ const AdminFinancial = () => {
                 Visualize e filtre as últimas transações
               </CardDescription>
             </div>
-            <Button onClick={handleExport}>
-              <Download className="h-4 w-4 mr-2" />
+            <Button onClick={handleExport} disabled={exportLoading}>
+              {exportLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
               Exportar
             </Button>
           </div>
@@ -498,7 +488,7 @@ const AdminFinancial = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredTransactions.map((transaction) => (
+                {transactions.map((transaction) => (
                   <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-3">{new Date(transaction.date).toLocaleDateString('pt-BR')}</td>
                     <td className="px-4 py-3">{transaction.customer}</td>
@@ -526,7 +516,7 @@ const AdminFinancial = () => {
                     </td>
                   </tr>
                 ))}
-                {filteredTransactions.length === 0 && (
+                {transactions.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                       Nenhuma transação encontrada.
