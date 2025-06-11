@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +7,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Edit, Trash2, Package, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/sonner';
 
 interface Product {
   id: string;
@@ -18,70 +19,99 @@ interface Product {
   type: string;
   price: number;
   stock: number;
-  status: string;
+  status: 'active' | 'inactive';
 }
 
-// Mock data
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    name: 'Finasterida 1mg',
-    description: 'Medicamento para tratamento da calvície masculina',
-    type: 'queda-capilar',
-    price: 89.90,
-    stock: 150,
-    status: 'active'
-  },
-  {
-    id: '2',
-    name: 'Minoxidil 5%',
-    description: 'Solução tópica para estimular o crescimento capilar',
-    type: 'queda-capilar',
-    price: 65.50,
-    stock: 89,
-    status: 'active'
-  },
-  {
-    id: '3',
-    name: 'Tadalafila 5mg',
-    description: 'Medicamento para disfunção erétil uso diário',
-    type: 'disfuncao-eretil',
-    price: 125.00,
-    stock: 45,
-    status: 'active'
-  },
-  {
-    id: '4',
-    name: 'Sildenafila 50mg',
-    description: 'Medicamento para disfunção erétil uso conforme necessário',
-    type: 'disfuncao-eretil',
-    price: 95.75,
-    stock: 8,
-    status: 'active'
-  },
-  {
-    id: '5',
-    name: 'Kit Completo Capilar',
-    description: 'Kit com finasterida + minoxidil para 3 meses',
-    type: 'queda-capilar',
-    price: 285.00,
-    stock: 25,
-    status: 'active'
-  },
-  {
-    id: '6',
-    name: 'Dutasterida 0.5mg',
-    description: 'Alternativa à finasterida para casos mais severos',
-    type: 'queda-capilar',
-    price: 145.90,
-    stock: 0,
-    status: 'inactive'
+const API_BASE_URL = 'http://localhost:3000';
+
+// Funções de API
+const fetchProducts = async (token: string): Promise<Product[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar produtos:', error);
+    throw error;
   }
-];
+};
+
+const createProduct = async (productData: Omit<Product, 'id'>, token: string): Promise<Product> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(productData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao criar produto:', error);
+    throw error;
+  }
+};
+
+const updateProduct = async (id: string, productData: Partial<Product>, token: string): Promise<Product> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(productData)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao atualizar produto:', error);
+    throw error;
+  }
+};
+
+const deleteProduct = async (id: string, token: string): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Erro ao deletar produto:', error);
+    throw error;
+  }
+};
 
 const Products = () => {
+  const { user: authUser } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<any>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -92,83 +122,66 @@ const Products = () => {
     type: '',
     price: '',
     stock: '',
-    status: 'active'
+    status: 'active' as 'active' | 'inactive'
   });
 
-  const fetchProducts = async () => {
-    setLoading(true);
-    setError(null);
-    
-    // Simulate loading delay
-    setTimeout(() => {
-      setProducts(mockProducts);
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      const data = await fetchProducts(authUser.token);
+      setProducts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao carregar produtos');
+      console.error('Error loading products:', err);
+      toast.error('Falha ao carregar produtos');
+    } finally {
       setLoading(false);
-    }, 500);
-  };
-
-  const createProduct = async (productData: any) => {
-    const newProduct: Product = {
-      id: Date.now().toString(),
-      name: productData.name,
-      description: productData.description,
-      type: productData.type,
-      price: parseFloat(productData.price),
-      stock: parseInt(productData.stock),
-      status: productData.status
-    };
-    
-    setProducts(prev => [...prev, newProduct]);
-    return newProduct;
-  };
-
-  const updateProduct = async (id: string, productData: any) => {
-    const updatedProduct = {
-      name: productData.name,
-      description: productData.description,
-      type: productData.type,
-      price: parseFloat(productData.price),
-      stock: parseInt(productData.stock),
-      status: productData.status
-    };
-    
-    setProducts(prev => prev.map(product => 
-      product.id === id ? { ...product, ...updatedProduct } : product
-    ));
-    
-    return updatedProduct;
-  };
-
-  const deleteProduct = async (id: string) => {
-    setProducts(prev => prev.filter(product => product.id !== id));
+    }
   };
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    loadProducts();
+  }, [authUser?.token]);
 
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
     
     try {
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
       const productData = {
         name: formData.name,
         description: formData.description,
         type: formData.type,
-        price: formData.price,
-        stock: formData.stock,
+        price: parseFloat(formData.price),
+        stock: parseInt(formData.stock),
         status: formData.status
       };
 
       if (editingProduct) {
-        await updateProduct(editingProduct.id, productData);
+        const updatedProduct = await updateProduct(editingProduct.id, productData, authUser.token);
+        setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+        toast.success('Produto atualizado com sucesso!');
       } else {
-        await createProduct(productData);
+        const newProduct = await createProduct(productData, authUser.token);
+        setProducts(prev => [...prev, newProduct]);
+        toast.success('Produto criado com sucesso!');
       }
       
       resetForm();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar produto');
+      toast.error('Falha ao salvar produto');
+      console.error('Error saving product:', err);
     } finally {
       setLoading(false);
     }
@@ -187,7 +200,7 @@ const Products = () => {
     setIsDialogOpen(false);
   };
 
-  const handleEdit = (product: any) => {
+  const handleEdit = (product: Product) => {
     setEditingProduct(product);
     setFormData({
       name: product.name,
@@ -209,9 +222,17 @@ const Products = () => {
     setError(null);
     
     try {
-      await deleteProduct(id);
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      await deleteProduct(id, authUser.token);
+      setProducts(prev => prev.filter(product => product.id !== id));
+      toast.success('Produto deletado com sucesso!');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao deletar produto');
+      toast.error('Falha ao deletar produto');
+      console.error('Error deleting product:', err);
     } finally {
       setLoading(false);
     }
@@ -309,7 +330,7 @@ const Products = () => {
                   <Label htmlFor="status">Status</Label>
                   <Select 
                     value={formData.status} 
-                    onValueChange={(value) => setFormData({ ...formData, status: value })}
+                    onValueChange={(value) => setFormData({ ...formData, status: value as 'active' | 'inactive' })}
                     disabled={loading}
                   >
                     <SelectTrigger>
@@ -357,7 +378,12 @@ const Products = () => {
                 Cancelar
               </Button>
               <Button onClick={handleSubmit} disabled={loading}>
-                {loading ? 'Salvando...' : editingProduct ? 'Salvar Alterações' : 'Criar Produto'}
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : editingProduct ? 'Salvar Alterações' : 'Criar Produto'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -381,11 +407,13 @@ const Products = () => {
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={fetchProducts}
+              onClick={loadProducts}
               disabled={loading}
               className="ml-auto"
             >
-              {loading ? 'Carregando...' : 'Atualizar'}
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : 'Atualizar'}
             </Button>
           </CardTitle>
           <CardDescription>
@@ -394,8 +422,9 @@ const Products = () => {
         </CardHeader>
         <CardContent>
           {loading && products.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="text-gray-500">Carregando produtos...</p>
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-2">Carregando produtos...</span>
             </div>
           ) : (
             <div className="overflow-x-auto">

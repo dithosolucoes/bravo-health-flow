@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/ui/sonner';
 import { Globe, ShieldCheck, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Settings {
   general: {
@@ -26,19 +26,72 @@ interface Settings {
   };
 }
 
-// Mock settings data
-const mockSettings = {
-  general: {
-    companyName: 'Bravo Homem',
-    siteUrl: 'https://bravohomem.com.br',
-    contactEmail: 'contato@bravohomem.com.br',
-    supportPhone: '(11) 99999-0000',
-    timezone: 'America/Sao_Paulo',
-    maintenanceMode: false,
-  },
+const API_BASE_URL = 'http://localhost:3000';
+
+const fetchSettings = async (token: string): Promise<Settings['general']> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar configurações:', error);
+    throw error;
+  }
+};
+
+const updateSettings = async (settings: Settings['general'], token: string): Promise<Settings['general']> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/settings`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(settings)
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao atualizar configurações:', error);
+    throw error;
+  }
+};
+
+const changePassword = async (currentPassword: string, newPassword: string, token: string): Promise<void> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/change-password`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('Erro ao alterar senha:', error);
+    throw error;
+  }
 };
 
 const AdminSettings = () => {
+  const { user: authUser } = useAuth();
   const [activeTab, setActiveTab] = useState('general');
   const [settings, setSettings] = useState<Settings>({
     general: {
@@ -59,31 +112,31 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Mock fetch settings on component mount
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        setSettings(prev => ({
-          ...prev,
-          general: mockSettings.general
-        }));
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-        toast.error('Failed to load settings');
-      } finally {
-        setLoading(false);
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
       }
-    };
 
-    fetchSettings();
-  }, []);
+      const data = await fetchSettings(authUser.token);
+      setSettings(prev => ({
+        ...prev,
+        general: data
+      }));
+    } catch (error) {
+      console.error('Error loading settings:', error);
+      toast.error('Falha ao carregar configurações');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Handle settings change
+  useEffect(() => {
+    loadSettings();
+  }, [authUser?.token]);
+
   const handleSettingsChange = (section: keyof Settings, field: string, value: any) => {
     setSettings(prev => ({
       ...prev,
@@ -94,25 +147,30 @@ const AdminSettings = () => {
     }));
   };
 
-  // Mock save general settings
   const saveSettings = async () => {
     try {
       setSaving(true);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
 
-      toast.success('Settings saved successfully!');
+      const updatedSettings = await updateSettings(settings.general, authUser.token);
+      setSettings(prev => ({
+        ...prev,
+        general: updatedSettings
+      }));
+      
+      toast.success('Configurações salvas com sucesso!');
     } catch (error) {
       console.error('Error saving settings:', error);
-      toast.error('Failed to save settings');
+      toast.error('Falha ao salvar configurações');
     } finally {
       setSaving(false);
     }
   };
 
-  // Mock change password
-  const changePassword = async () => {
+  const handleChangePassword = async () => {
     if (settings.security.newPassword !== settings.security.confirmPassword) {
       toast.error('As senhas não coincidem');
       return;
@@ -126,12 +184,18 @@ const AdminSettings = () => {
     try {
       setChangingPassword(true);
       
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      await changePassword(
+        settings.security.currentPassword,
+        settings.security.newPassword,
+        authUser.token
+      );
 
       toast.success('Senha alterada com sucesso!');
       
-      // Clear password fields
       setSettings(prev => ({
         ...prev,
         security: {
@@ -142,7 +206,7 @@ const AdminSettings = () => {
       }));
     } catch (error) {
       console.error('Error changing password:', error);
-      toast.error('Falha ao alterar senha');
+      toast.error(error instanceof Error ? error.message : 'Falha ao alterar senha');
     } finally {
       setChangingPassword(false);
     }
@@ -152,7 +216,7 @@ const AdminSettings = () => {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-bravo-blue" />
-        <span className="ml-2">Loading settings...</span>
+        <span className="ml-2">Carregando configurações...</span>
       </div>
     );
   }
@@ -325,7 +389,7 @@ const AdminSettings = () => {
             </CardContent>
             <CardFooter>
               <Button 
-                onClick={changePassword}
+                onClick={handleChangePassword}
                 disabled={changingPassword || !settings.security.currentPassword || !settings.security.newPassword || !settings.security.confirmPassword}
               >
                 {changingPassword ? (

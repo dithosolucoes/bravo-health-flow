@@ -22,6 +22,7 @@ import {
 import { toast } from '@/components/ui/sonner';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface User {
   id: string;
@@ -36,71 +37,53 @@ interface User {
   subscription: 'active' | 'cancelled' | 'expired' | null;
 }
 
-// Mock data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'João Silva Santos',
-    email: 'joao.santos@email.com',
-    phone: '(11) 99999-1234',
-    registrationDate: '2024-01-15',
-    status: 'active',
-    type: 'returning',
-    anamneseStatus: 'completed',
-    treatment: 'queda-capilar',
-    subscription: 'active'
-  },
-  {
-    id: '2',
-    name: 'Maria Oliveira Costa',
-    email: 'maria.costa@email.com',
-    phone: '(11) 98888-5678',
-    registrationDate: '2024-02-20',
-    status: 'active',
-    type: 'new',
-    anamneseStatus: 'completed',
-    treatment: 'disfuncao-eretil',
-    subscription: 'active'
-  },
-  {
-    id: '3',
-    name: 'Carlos Eduardo Lima',
-    email: 'carlos.lima@email.com',
-    phone: '(11) 97777-9012',
-    registrationDate: '2024-03-10',
-    status: 'pending',
-    type: 'new',
-    anamneseStatus: 'incomplete',
-    treatment: null,
-    subscription: null
-  },
-  {
-    id: '4',
-    name: 'Ana Paula Ferreira',
-    email: 'ana.ferreira@email.com',
-    phone: '(11) 96666-3456',
-    registrationDate: '2024-04-05',
-    status: 'blocked',
-    type: 'returning',
-    anamneseStatus: 'completed',
-    treatment: 'queda-capilar',
-    subscription: 'cancelled'
-  },
-  {
-    id: '5',
-    name: 'Roberto Almeida',
-    email: 'roberto.almeida@email.com',
-    phone: '(11) 95555-7890',
-    registrationDate: '2024-05-12',
-    status: 'active',
-    type: 'new',
-    anamneseStatus: 'not_started',
-    treatment: null,
-    subscription: null
+const API_BASE_URL = 'http://localhost:3000';
+
+// Funções de API
+const fetchUsers = async (token: string): Promise<User[]> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/users`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao buscar usuários:', error);
+    throw error;
   }
-];
+};
+
+const updateUserStatus = async (userId: string, status: User['status'], token: string): Promise<User> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ status })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Erro ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro ao atualizar status do usuário:', error);
+    throw error;
+  }
+};
 
 const AdminUsers = () => {
+  const { user: authUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -116,21 +99,24 @@ const AdminUsers = () => {
       setLoading(true);
       setError(null);
       
-      // Simulate loading delay
-      setTimeout(() => {
-        setUsers(mockUsers);
-        setLoading(false);
-      }, 500);
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      const data = await fetchUsers(authUser.token);
+      setUsers(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar usuários');
       console.error('Error loading users:', err);
+      toast.error('Falha ao carregar usuários');
+    } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
     loadUsers();
-  }, []);
+  }, [authUser?.token]);
 
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -179,40 +165,42 @@ const AdminUsers = () => {
     }
   };
   
-  const blockUser = async (userId: string) => {
+  const handleBlockUser = async (userId: string) => {
     try {
       setActionLoading(userId);
       
-      // Simulate API call
-      setTimeout(() => {
-        setUsers(users.map(user => 
-          user.id === userId ? { ...user, status: 'blocked' } : user
-        ));
-        setActionLoading(null);
-        toast.success('Usuário bloqueado com sucesso.');
-      }, 500);
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      const updatedUser = await updateUserStatus(userId, 'blocked', authUser.token);
+      setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
+      
+      toast.success('Usuário bloqueado com sucesso.');
     } catch (error) {
       toast.error('Erro ao bloquear usuário.');
       console.error('Error blocking user:', error);
+    } finally {
       setActionLoading(null);
     }
   };
   
-  const unblockUser = async (userId: string) => {
+  const handleUnblockUser = async (userId: string) => {
     try {
       setActionLoading(userId);
       
-      // Simulate API call
-      setTimeout(() => {
-        setUsers(users.map(user => 
-          user.id === userId ? { ...user, status: 'active' } : user
-        ));
-        setActionLoading(null);
-        toast.success('Usuário desbloqueado com sucesso.');
-      }, 500);
+      if (!authUser?.token) {
+        throw new Error('Token de autenticação não disponível');
+      }
+
+      const updatedUser = await updateUserStatus(userId, 'active', authUser.token);
+      setUsers(users.map(user => user.id === updatedUser.id ? updatedUser : user));
+      
+      toast.success('Usuário desbloqueado com sucesso.');
     } catch (error) {
       toast.error('Erro ao desbloquear usuário.');
       console.error('Error unblocking user:', error);
+    } finally {
       setActionLoading(null);
     }
   };
@@ -456,14 +444,14 @@ const AdminUsers = () => {
                       {user.status === 'blocked' ? (
                         <DropdownMenuItem 
                           className="text-green-600" 
-                          onClick={() => unblockUser(user.id)}
+                          onClick={() => handleUnblockUser(user.id)}
                         >
                           Desbloquear usuário
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuItem 
                           className="text-red-600" 
-                          onClick={() => blockUser(user.id)}
+                          onClick={() => handleBlockUser(user.id)}
                         >
                           Bloquear usuário
                         </DropdownMenuItem>
