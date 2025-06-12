@@ -20,7 +20,7 @@ interface Prescription {
   };
 }
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://bravo-backend-production.up.railway.app';
 
 const fetchPrescriptions = async (token: string): Promise<Prescription[]> => {
   try {

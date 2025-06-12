@@ -43,7 +43,7 @@ const FlowBuilder = () => {
   const [currentTab, setCurrentTab] = useState('flows');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const API_BASE_URL = 'http://localhost:3000';
+  const API_BASE_URL = 'https://bravo-backend-production.up.railway.app';
 
   // Fetch flows on component mount
   useEffect(() => {

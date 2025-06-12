@@ -37,7 +37,7 @@ interface User {
   subscription: 'active' | 'cancelled' | 'expired' | null;
 }
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://bravo-backend-production.up.railway.app';
 
 // Funções de API
 const fetchUsers = async (token: string): Promise<User[]> => {

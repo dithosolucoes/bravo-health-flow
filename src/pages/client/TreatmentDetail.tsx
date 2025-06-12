@@ -7,7 +7,34 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Camera, TrendingUp, Clock, Loader2, AlertCircle, ArrowLeft, RefreshCw, Upload } from 'lucide-react';
 import { toast } from '@/components/ui/sonner';
-import { treatmentService, TreatmentEvolution } from '@/services/treatmentService';
+
+interface Photo {
+  id: string;
+  imageUrl: string;
+  description: string;
+  date: string;
+}
+
+interface Milestone {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  completed: boolean;
+}
+
+interface TreatmentEvolution {
+  id: string;
+  title: string;
+  currentPhase: string;
+  timeElapsed: string;
+  timeRemaining: string;
+  totalDuration: string;
+  progress: number;
+  photos: Photo[];
+  milestones: Milestone[];
+  startDate: string;
+}
 
 const TreatmentDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -17,6 +44,8 @@ const TreatmentDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const API_BASE_URL = 'https://bravo-backend-production.up.railway.app/api';
 
   const fetchTreatmentEvolution = async (showLoadingToast = false) => {
     if (!user?.token || !id) {
@@ -33,7 +62,18 @@ const TreatmentDetail = () => {
         toast.loading('Atualizando dados do tratamento...');
       }
 
-      const data = await treatmentService.getTreatmentEvolution(id, user.token);
+      const response = await fetch(`${API_BASE_URL}/treatments/${id}/evolution`, {
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
       setTreatmentData(data);
       setRetryCount(0);
       
@@ -86,9 +126,22 @@ const TreatmentDetail = () => {
       setUploadingPhoto(true);
       toast.loading('Enviando foto...');
 
-      const description = `Foto de ${new Date().toLocaleDateString('pt-BR')}`;
-      const result = await treatmentService.uploadTreatmentPhoto(id, file, description, user.token);
-      
+      const formData = new FormData();
+      formData.append('photo', file);
+      formData.append('description', `Foto de ${new Date().toLocaleDateString('pt-BR')}`);
+
+      const response = await fetch(`${API_BASE_URL}/treatments/${id}/photos`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
       // Atualizar os dados do tratamento
       await fetchTreatmentEvolution();
       
@@ -109,8 +162,18 @@ const TreatmentDetail = () => {
     try {
       toast.loading('Marcando marco como concluído...');
       
-      await treatmentService.completeMilestone(id, milestoneId, user.token);
-      
+      const response = await fetch(`${API_BASE_URL}/treatments/${id}/milestones/${milestoneId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${user.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro HTTP: ${response.status}`);
+      }
+
       // Atualizar os dados do tratamento
       await fetchTreatmentEvolution();
       
@@ -137,6 +200,9 @@ const TreatmentDetail = () => {
       return () => clearTimeout(timer);
     }
   }, [error, retryCount]);
+
+  // Restante do componente permanece igual...
+  // (O código de renderização não foi alterado, apenas as chamadas de serviço)
 
   if (loading) {
     return (

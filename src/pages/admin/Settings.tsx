@@ -26,7 +26,7 @@ interface Settings {
   };
 }
 
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://bravo-backend-production.up.railway.app';
 
 const fetchSettings = async (token: string): Promise<Settings['general']> => {
   try {

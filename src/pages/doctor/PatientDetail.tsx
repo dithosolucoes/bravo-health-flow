@@ -1,86 +1,47 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/components/ui/sonner';
-import { ArrowLeft, Upload, CheckSquare, FileText } from 'lucide-react';
+import { ArrowLeft, Upload, CheckSquare, FileText, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+
+const API_URL = 'https://bravo-backend-production.up.railway.app';
 
 const DoctorPatientDetail = () => {
   const { id } = useParams<{id: string}>();
   const navigate = useNavigate();
   
+  const [patient, setPatient] = useState<any>(null);
   const [observations, setObservations] = useState('');
   const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Mock patient data
-  const patient = {
-    id,
-    name: 'João Silva',
-    age: 32,
-    email: 'joao.silva@email.com',
-    phone: '(11) 98765-4321',
-    date: '2023-03-25T14:30:00',
-    type: 'queda-capilar',
-    answers: [
-      {
-        question: 'Há quanto tempo você percebeu a queda capilar?',
-        answer: 'Entre 1 e 3 anos'
-      },
-      {
-        question: 'Como você classificaria seu padrão de queda?',
-        answer: 'Entradas (recuo da linha frontal)'
-      },
-      {
-        question: 'Existe histórico de calvície na sua família?',
-        answer: 'Sim, do lado paterno'
-      },
-      {
-        question: 'Já realizou algum tratamento para queda capilar anteriormente?',
-        answer: 'Tentei usar minoxidil por conta própria por cerca de 2 meses, mas não tive paciência para continuar.'
-      },
-      {
-        question: 'Você tem alguma alergia?',
-        answer: 'Não'
-      },
-      {
-        question: 'Você tem alguma condição médica?',
-        answer: 'Não'
-      },
-      {
-        question: 'Medicamentos que utiliza atualmente',
-        answer: 'Nenhum'
-      },
-      {
-        question: 'Você fuma?',
-        answer: 'Ocasionalmente'
-      },
-      {
-        question: 'Consumo de álcool',
-        answer: 'Semanalmente'
-      },
-      {
-        question: 'Frequência de atividade física',
-        answer: 'Leve (1-2 dias por semana)'
-      },
-      {
-        question: 'Quais são suas expectativas com o tratamento?',
-        answer: 'Gostaria de impedir o avanço da calvície e, se possível, recuperar um pouco dos fios nas entradas.'
-      },
-      {
-        question: 'Você tem alguma preocupação ou dúvida específica?',
-        answer: 'Estou preocupado com possíveis efeitos colaterais da finasterida.'
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await fetch(`${API_URL}/patients/${id}`);
+        if (!response.ok) {
+          throw new Error('Erro ao carregar dados do paciente');
+        }
+        const data = await response.json();
+        setPatient(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar paciente');
+      } finally {
+        setLoading(false);
       }
-    ],
-    personalInfo: {
-      birthdate: '1990-05-10',
-      height: '178',
-      weight: '75',
-    }
-  };
+    };
+
+    fetchPatientData();
+  }, [id]);
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,9 +63,20 @@ const DoctorPatientDetail = () => {
     setIsSubmitting(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const formData = new FormData();
+      formData.append('prescription', prescriptionFile);
+      formData.append('observations', observations);
+      formData.append('patientId', id || '');
+
+      const response = await fetch(`${API_URL}/evaluations`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao salvar avaliação');
+      }
+
       toast.success('Avaliação concluída com sucesso!');
       
       // Redirect back to dashboard
@@ -116,6 +88,31 @@ const DoctorPatientDetail = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p>Carregando dados do paciente...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mb-6">
+        <Alert className="border-red-200 bg-red-50">
+          <AlertCircle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">
+            {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (!patient) {
+    return <div>Paciente não encontrado</div>;
+  }
 
   return (
     <div>
@@ -203,7 +200,7 @@ const DoctorPatientDetail = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {patient.answers.map((item, index) => (
+                {patient.answers.map((item: any, index: number) => (
                   <div key={index} className="bg-gray-50 p-4 rounded-lg">
                     <h3 className="font-medium text-gray-700 mb-1">{item.question}</h3>
                     <p className="text-gray-900">{item.answer}</p>

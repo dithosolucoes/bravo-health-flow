@@ -46,10 +46,9 @@ interface ApiResponse<T> {
   message?: string;
 }
 
-// API functions
-const API_BASE_URL = 'http://localhost:3000';
+const API_BASE_URL = 'https://bravo-backend-production.up.railway.app';
 
-const apiRequest = async <T>(endpoint: string, options?: RequestInit): Promise<T> => {
+const apiRequest = async <T,>(endpoint: string, options?: RequestInit): Promise<T> => {
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       headers: {
@@ -58,17 +57,14 @@ const apiRequest = async <T>(endpoint: string, options?: RequestInit): Promise<T
       },
       ...options,
     });
-
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-
     const result: ApiResponse<T> = await response.json();
     
     if (!result.success) {
       throw new Error(result.message || 'API request failed');
     }
-
     return result.data;
   } catch (error) {
     console.error('API request error:', error);

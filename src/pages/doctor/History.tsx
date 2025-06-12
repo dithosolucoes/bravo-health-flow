@@ -16,7 +16,7 @@ interface Patient {
   type: string;
   status: string;
 }
-const API_BASE_URL ='http://localhost:3000';
+const API_BASE_URL ='https://bravo-backend-production.up.railway.app';
 
 const DoctorHistory = () => {
   const [patients, setPatients] = useState<Patient[]>([]);

@@ -22,7 +22,7 @@ interface Treatment {
   lastUpdate: string;
 }
 
-const API_BASE_URL ='http://localhost:3000';
+const API_BASE_URL ='https://bravo-backend-production.up.railway.app';
 
 const TreatmentsList = () => {
   const { user } = useAuth();

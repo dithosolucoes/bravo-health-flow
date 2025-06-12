@@ -86,7 +86,7 @@ const App = () => (
           <Route 
             path="/cliente" 
             element={
-              <RequireAuth role="client">
+              <RequireAuth role="CLIENTE">
                 <ClientLayout />
               </RequireAuth>
             }
@@ -103,7 +103,7 @@ const App = () => (
           <Route 
             path="/medico" 
             element={
-              <RequireAuth role="doctor">
+              <RequireAuth role="MEDICO">
                 <DoctorLayout />
               </RequireAuth>
             }
@@ -120,7 +120,7 @@ const App = () => (
           <Route 
             path="/admin" 
             element={
-              <RequireAuth role="admin">
+              <RequireAuth role="ADMIN">
                 <AdminLayout />
               </RequireAuth>
             }

@@ -34,7 +34,7 @@ interface Doctor {
   joinedDate: string;
 }
 
-const API_URL = 'http://localhost:3000/doctors';
+const API_URL = 'https://bravo-backend-production.up.railway.app/doctors';
 
 const AdminDoctors = () => {
   const [searchQuery, setSearchQuery] = useState('');

@@ -19,7 +19,7 @@ import {
   TabsTrigger
 } from '@/components/ui/tabs';
 
-const API_BASE_URL ='http://localhost:3000';
+const API_BASE_URL ='https://bravo-backend-production.up.railway.app';
 
 interface DoctorProfileData {
   name: string;

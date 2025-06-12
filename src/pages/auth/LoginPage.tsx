@@ -8,46 +8,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { toast } from '@/components/ui/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:3000';
-
-interface LoginResponse {
-  token: string;
-  user: {
-    id: string;
-    name: string;
-    email: string;
-    role: 'admin' | 'doctor' | 'client';
-  };
-}
-
-const loginUser = async (email: string, password: string): Promise<LoginResponse> => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Erro ao fazer login');
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('Erro na requisição de login:', error);
-    throw error;
-  }
-};
-
 const LoginPage = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -57,43 +23,35 @@ const LoginPage = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
-      // Primeiro fazemos a requisição para a API
-      const { token, user } = await loginUser(email, password);
-      
-      // Depois atualizamos o contexto de autenticação
-      await login(token, user);
-      
+      await login(email, password);
+
       toast({
         title: 'Login realizado com sucesso',
         description: 'Seja bem-vindo à plataforma Bravo Homem.',
         duration: 3000,
       });
-      
-      // Redireciona com base no perfil do usuário
-      switch (user.role) {
-        case 'admin':
+
+      const loggedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      switch (loggedUser.role) {
+        case 'ADMIN':
           navigate('/admin/dashboard');
           break;
-        case 'doctor':
+        case 'MEDICO':
           navigate('/medico/dashboard');
           break;
-        case 'client':
+        case 'CLIENTE':
           navigate('/cliente/dashboard');
           break;
         default:
           navigate(from);
       }
-      
     } catch (error) {
-      console.error('Erro no login:', error);
-      
       let errorMessage = 'Ocorreu um erro ao fazer login';
       if (error instanceof Error) {
         errorMessage = error.message;
       }
-      
       setError(errorMessage);
       toast({
         title: 'Erro no login',
@@ -114,7 +72,7 @@ const LoginPage = () => {
             <span className="text-2xl font-montserrat font-bold text-bravo-blue">Bravo Homem</span>
           </Link>
         </div>
-        
+
         <Card>
           <CardHeader>
             <CardTitle className="text-center">Entrar</CardTitle>
@@ -122,7 +80,7 @@ const LoginPage = () => {
               Acesse sua conta para gerenciar seus tratamentos
             </CardDescription>
           </CardHeader>
-          
+
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               {error && (
@@ -130,19 +88,7 @@ const LoginPage = () => {
                   {error}
                 </div>
               )}
-              
-              {/* Helper para credenciais de teste (apenas em desenvolvimento) */}
-              {process.env.NODE_ENV === 'development' && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                  <p className="font-medium text-blue-800 mb-2">Credenciais para teste:</p>
-                  <div className="space-y-1 text-blue-700">
-                    <p><strong>Admin:</strong> admin@bravohomem.com.br / admin123</p>
-                    <p><strong>Médicos:</strong> dr.silva@bravohomem.com.br / medico123</p>
-                    <p><strong>Clientes:</strong> joao.cliente@gmail.com / cliente123</p>
-                  </div>
-                </div>
-              )}
-              
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -155,14 +101,11 @@ const LoginPage = () => {
                   autoComplete="username"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password">Senha</Label>
-                  <Link 
-                    to="/esqueci-senha"
-                    className="text-xs text-bravo-blue hover:underline"
-                  >
+                  <Link to="/esqueci-senha" className="text-xs text-bravo-blue hover:underline">
                     Esqueceu a senha?
                   </Link>
                 </div>
@@ -177,13 +120,9 @@ const LoginPage = () => {
                 />
               </div>
             </CardContent>
-            
+
             <CardFooter className="flex flex-col space-y-4">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                disabled={isLoading}
-              >
+              <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -191,7 +130,7 @@ const LoginPage = () => {
                   </>
                 ) : 'Entrar'}
               </Button>
-              
+
               <div className="text-center text-sm text-gray-600">
                 Não tem uma conta?{' '}
                 <Link to="/registrar" className="text-bravo-blue hover:underline">
@@ -201,12 +140,9 @@ const LoginPage = () => {
             </CardFooter>
           </form>
         </Card>
-        
+
         <div className="text-center mt-8">
-          <Link 
-            to="/" 
-            className="text-sm text-gray-600 hover:text-bravo-blue inline-flex items-center"
-          >
+          <Link to="/" className="text-sm text-gray-600 hover:text-bravo-blue inline-flex items-center">
             <ArrowLeft className="h-4 w-4 mr-1" />
             Voltar para a página inicial
           </Link>

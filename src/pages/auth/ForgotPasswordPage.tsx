@@ -43,7 +43,7 @@ const ResetPasswordPage = () => {
     
     try {
       // Fazer requisição para a API
-      const response = await fetch('http://localhost:3000/api/auth/reset-password', {
+      const response = await fetch('https://bravo-backend-production.up.railway.app/api/auth/reset-password', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
